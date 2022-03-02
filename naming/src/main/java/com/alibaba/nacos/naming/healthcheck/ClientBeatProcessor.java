@@ -35,52 +35,54 @@ import java.util.concurrent.TimeUnit;
  * @author nkorange
  */
 public class ClientBeatProcessor implements BeatProcessor {
-    
+
     public static final long CLIENT_BEAT_TIMEOUT = TimeUnit.SECONDS.toMillis(15);
-    
+
     private RsInfo rsInfo;
-    
+
     private Service service;
-    
+
     @JsonIgnore
     public UdpPushService getPushService() {
         return ApplicationUtils.getBean(UdpPushService.class);
     }
-    
+
     public RsInfo getRsInfo() {
         return rsInfo;
     }
-    
+
     public void setRsInfo(RsInfo rsInfo) {
         this.rsInfo = rsInfo;
     }
-    
+
     public Service getService() {
         return service;
     }
-    
+
     public void setService(Service service) {
         this.service = service;
     }
-    
+
     @Override
     public void run() {
         Service service = this.service;
         if (Loggers.EVT_LOG.isDebugEnabled()) {
             Loggers.EVT_LOG.debug("[CLIENT-BEAT] processing beat: {}", rsInfo.toString());
         }
-        
+
         String ip = rsInfo.getIp();
         String clusterName = rsInfo.getCluster();
         int port = rsInfo.getPort();
         Cluster cluster = service.getClusterMap().get(clusterName);
+        //获取所有实例信息
         List<Instance> instances = cluster.allIPs(true);
-        
+
         for (Instance instance : instances) {
             if (instance.getIp().equals(ip) && instance.getPort() == port) {
                 if (Loggers.EVT_LOG.isDebugEnabled()) {
                     Loggers.EVT_LOG.debug("[CLIENT-BEAT] refresh beat: {}", rsInfo.toString());
                 }
+                //设置最后的更新时间
                 instance.setLastBeat(System.currentTimeMillis());
                 if (!instance.isMarked()) {
                     if (!instance.isHealthy()) {
