@@ -33,23 +33,24 @@ import org.springframework.stereotype.Component;
 @SuppressWarnings("PMD.ServiceOrDaoClassShouldEndWithImplRule")
 @Component
 public class ClientOperationServiceProxy implements ClientOperationService {
-    
+
     private final ClientOperationService ephemeralClientOperationService;
-    
+
     private final ClientOperationService persistentClientOperationService;
-    
+
     public ClientOperationServiceProxy(EphemeralClientOperationServiceImpl ephemeralClientOperationService,
             PersistentClientOperationServiceImpl persistentClientOperationService) {
         this.ephemeralClientOperationService = ephemeralClientOperationService;
         this.persistentClientOperationService = persistentClientOperationService;
     }
-    
+
     @Override
+    //注册服务实例
     public void registerInstance(Service service, Instance instance, String clientId) {
         final ClientOperationService operationService = chooseClientOperationService(instance);
         operationService.registerInstance(service, instance, clientId);
     }
-    
+
     @Override
     public void deregisterInstance(Service service, Instance instance, String clientId) {
         if (!ServiceManager.getInstance().containSingleton(service)) {
@@ -59,19 +60,19 @@ public class ClientOperationServiceProxy implements ClientOperationService {
         final ClientOperationService operationService = chooseClientOperationService(instance);
         operationService.deregisterInstance(service, instance, clientId);
     }
-    
+
     @Override
     public void subscribeService(Service service, Subscriber subscriber, String clientId) {
         // Subscriber is an ephemeral type only, so call ephemeral client directly
         ephemeralClientOperationService.subscribeService(service, subscriber, clientId);
     }
-    
+
     @Override
     public void unsubscribeService(Service service, Subscriber subscriber, String clientId) {
         // Subscriber is an ephemeral type only, so call ephemeral client directly
         ephemeralClientOperationService.unsubscribeService(service, subscriber, clientId);
     }
-    
+
     private ClientOperationService chooseClientOperationService(final Instance instance) {
         return instance.isEphemeral() ? ephemeralClientOperationService : persistentClientOperationService;
     }

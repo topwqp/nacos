@@ -42,7 +42,7 @@ import java.util.Optional;
  * @author xiweng.yy
  */
 public class ExpiredInstanceChecker implements InstanceBeatChecker {
-    
+
     @Override
     public void doCheck(Client client, Service service, HealthCheckInstancePublishInfo instance) {
         boolean expireInstance = ApplicationUtils.getBean(GlobalConfig.class).isExpireInstance();
@@ -50,12 +50,13 @@ public class ExpiredInstanceChecker implements InstanceBeatChecker {
             deleteIp(client, service, instance);
         }
     }
-    
+
     private boolean isExpireInstance(Service service, HealthCheckInstancePublishInfo instance) {
         long deleteTimeout = getTimeout(service, instance);
+        //当前时间-服务最后心跳更新时间 > 默认30秒(可手工修改) 是过期实例，需要从服务列表中摘除
         return System.currentTimeMillis() - instance.getLastHeartBeatTime() > deleteTimeout;
     }
-    
+
     private long getTimeout(Service service, InstancePublishInfo instance) {
         Optional<Object> timeout = getTimeoutFromMetadata(service, instance);
         if (!timeout.isPresent()) {
@@ -63,15 +64,16 @@ public class ExpiredInstanceChecker implements InstanceBeatChecker {
         }
         return timeout.map(ConvertUtils::toLong).orElse(Constants.DEFAULT_IP_DELETE_TIMEOUT);
     }
-    
+
     private Optional<Object> getTimeoutFromMetadata(Service service, InstancePublishInfo instance) {
         Optional<InstanceMetadata> instanceMetadata = ApplicationUtils.getBean(NamingMetadataManager.class)
                 .getInstanceMetadata(service, instance.getMetadataId());
         return instanceMetadata.map(metadata -> metadata.getExtendData().get(PreservedMetadataKeys.IP_DELETE_TIMEOUT));
     }
-    
+
     private void deleteIp(Client client, Service service, InstancePublishInfo instance) {
         Loggers.SRV_LOG.info("[AUTO-DELETE-IP] service: {}, ip: {}", service.toString(), JacksonUtils.toJson(instance));
+        //实例信息从服务列表中摘除，就是从publisher的map中remove掉
         client.removeServiceInstance(service);
         NotifyCenter.publishEvent(new ClientOperationEvent.ClientDeregisterServiceEvent(service, client.getClientId()));
     }

@@ -36,29 +36,30 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author xiweng.yy
  */
 public abstract class AbstractClient implements Client {
-    
+
     protected final ConcurrentHashMap<Service, InstancePublishInfo> publishers = new ConcurrentHashMap<>(16, 0.75f, 1);
-    
+
     protected final ConcurrentHashMap<Service, Subscriber> subscribers = new ConcurrentHashMap<>(16, 0.75f, 1);
-    
+
     protected volatile long lastUpdatedTime;
-    
+
     public AbstractClient() {
         lastUpdatedTime = System.currentTimeMillis();
     }
-    
+
     @Override
     public void setLastUpdatedTime() {
         this.lastUpdatedTime = System.currentTimeMillis();
     }
-    
+
     @Override
     public long getLastUpdatedTime() {
         return lastUpdatedTime;
     }
-    
+
     @Override
     public boolean addServiceInstance(Service service, InstancePublishInfo instancePublishInfo) {
+        //真正开启服务注册，就是往publishers中的map中添加对应的服务实例信息
         if (null == publishers.put(service, instancePublishInfo)) {
             MetricsMonitor.incrementInstanceCount();
         }
@@ -66,7 +67,7 @@ public abstract class AbstractClient implements Client {
         Loggers.SRV_LOG.info("Client change for service {}, {}", service, getClientId());
         return true;
     }
-    
+
     @Override
     public InstancePublishInfo removeServiceInstance(Service service) {
         InstancePublishInfo result = publishers.remove(service);
@@ -77,17 +78,17 @@ public abstract class AbstractClient implements Client {
         Loggers.SRV_LOG.info("Client remove for service {}, {}", service, getClientId());
         return result;
     }
-    
+
     @Override
     public InstancePublishInfo getInstancePublishInfo(Service service) {
         return publishers.get(service);
     }
-    
+
     @Override
     public Collection<Service> getAllPublishedService() {
         return publishers.keySet();
     }
-    
+
     @Override
     public boolean addServiceSubscriber(Service service, Subscriber subscriber) {
         if (null == subscribers.put(service, subscriber)) {
@@ -95,7 +96,7 @@ public abstract class AbstractClient implements Client {
         }
         return true;
     }
-    
+
     @Override
     public boolean removeServiceSubscriber(Service service) {
         if (null != subscribers.remove(service)) {
@@ -103,17 +104,17 @@ public abstract class AbstractClient implements Client {
         }
         return true;
     }
-    
+
     @Override
     public Subscriber getSubscriber(Service service) {
         return subscribers.get(service);
     }
-    
+
     @Override
     public Collection<Service> getAllSubscribeService() {
         return subscribers.keySet();
     }
-    
+
     @Override
     public ClientSyncData generateSyncData() {
         List<String> namespaces = new LinkedList<>();
@@ -128,7 +129,7 @@ public abstract class AbstractClient implements Client {
         }
         return new ClientSyncData(getClientId(), namespaces, groupNames, serviceNames, instances);
     }
-    
+
     @Override
     public void release() {
         MetricsMonitor.getIpCountMonitor().addAndGet(-1 * publishers.size());

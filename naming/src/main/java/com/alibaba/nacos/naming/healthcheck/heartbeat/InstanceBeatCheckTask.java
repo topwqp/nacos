@@ -31,46 +31,48 @@ import java.util.List;
  * @author xiweng.yy
  */
 public class InstanceBeatCheckTask implements Interceptable {
-    
+
     private static final List<InstanceBeatChecker> CHECKERS = new LinkedList<>();
-    
+
     private final IpPortBasedClient client;
-    
+
     private final Service service;
-    
+
     private final HealthCheckInstancePublishInfo instancePublishInfo;
-    
+
     static {
+        //添加实例检查默认15秒未更新心跳，设置健康状态为false
         CHECKERS.add(new UnhealthyInstanceChecker());
+        //添加实例检查->默认30秒未更新心跳，直接摘除掉实例信息，从之前注册的publisher的map中remove掉
         CHECKERS.add(new ExpiredInstanceChecker());
         CHECKERS.addAll(NacosServiceLoader.load(InstanceBeatChecker.class));
     }
-    
+
     public InstanceBeatCheckTask(IpPortBasedClient client, Service service, HealthCheckInstancePublishInfo instancePublishInfo) {
         this.client = client;
         this.service = service;
         this.instancePublishInfo = instancePublishInfo;
     }
-    
+
     @Override
     public void passIntercept() {
         for (InstanceBeatChecker each : CHECKERS) {
             each.doCheck(client, service, instancePublishInfo);
         }
     }
-    
+
     @Override
     public void afterIntercept() {
     }
-    
+
     public IpPortBasedClient getClient() {
         return client;
     }
-    
+
     public Service getService() {
         return service;
     }
-    
+
     public HealthCheckInstancePublishInfo getInstancePublishInfo() {
         return instancePublishInfo;
     }

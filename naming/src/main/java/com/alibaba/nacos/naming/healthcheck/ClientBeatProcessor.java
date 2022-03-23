@@ -78,11 +78,12 @@ public class ClientBeatProcessor implements BeatProcessor {
         List<Instance> instances = cluster.allIPs(true);
 
         for (Instance instance : instances) {
+            //找到对应的实例信息，根据ip和端口
             if (instance.getIp().equals(ip) && instance.getPort() == port) {
                 if (Loggers.EVT_LOG.isDebugEnabled()) {
                     Loggers.EVT_LOG.debug("[CLIENT-BEAT] refresh beat: {}", rsInfo.toString());
                 }
-                //设置最后的更新时间
+                //设置最后的更新时间，心跳检测续期的核心就是设置lastBeat为当前时间
                 instance.setLastBeat(System.currentTimeMillis());
                 if (!instance.isMarked()) {
                     if (!instance.isHealthy()) {
@@ -91,6 +92,7 @@ public class ClientBeatProcessor implements BeatProcessor {
                                 .info("service: {} {POS} {IP-ENABLED} valid: {}:{}@{}, region: {}, msg: client beat ok",
                                         cluster.getService().getName(), ip, port, cluster.getName(),
                                         UtilsAndCommons.LOCALHOST_SITE);
+                        //发布事件通知
                         getPushService().serviceChanged(service);
                     }
                 }
