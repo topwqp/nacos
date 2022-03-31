@@ -83,7 +83,9 @@ public class NacosNamingService implements NamingService {
         initLogName(properties);
 
         this.changeNotifier = new InstancesChangeNotifier();
+        //InstancesChangeEvent.class与EventPublisher的关系
         NotifyCenter.registerToPublisher(InstancesChangeEvent.class, 16384);
+        //注册订阅者监听者，注意： publisher上绑定了消息的订阅者
         NotifyCenter.registerSubscriber(changeNotifier);
         this.serviceInfoHolder = new ServiceInfoHolder(namespace, properties);
         this.clientProxy = new NamingClientProxyDelegate(this.namespace, serviceInfoHolder, properties, changeNotifier);
@@ -217,19 +219,31 @@ public class NacosNamingService implements NamingService {
     }
 
     @Override
+
     public List<Instance> getAllInstances(String serviceName, String groupName, List<String> clusters,
             boolean subscribe) throws NacosException {
         ServiceInfo serviceInfo;
         String clusterString = StringUtils.join(clusters, ",");
+        /**
+         * 为什么需要说明是否订阅？?? 因为订阅机制会自动同步服务器实例的变化到本地
+         * 如果是订阅模式，则直接从本地缓存获取服务信息（ServiceInfo）
+         * ，然后从中获取实例列表，订阅机制会自动同步服务器实例的变化到本地。
+         * 如果本地缓存中没有，那说明是首次调用，则进行订阅，在订阅完成后会获得到服务信息。
+         */
+        //是否订阅了实例信息
         if (subscribe) {
+             //先从客户端缓存中获取服务信息
             serviceInfo = serviceInfoHolder.getServiceInfo(serviceName, groupName, clusterString);
             if (null == serviceInfo) {
+                //缓存中不存在，订阅信息
                 serviceInfo = clientProxy.subscribe(serviceName, groupName, clusterString);
             }
         } else {
+            //如果未订阅服务信息，直接从远程服务器进行查询
             serviceInfo = clientProxy.queryInstancesOfService(serviceName, groupName, clusterString, 0, false);
         }
         List<Instance> list;
+        //获取服务列表
         if (serviceInfo == null || CollectionUtils.isEmpty(list = serviceInfo.getHosts())) {
             return new ArrayList<Instance>();
         }
@@ -381,13 +395,16 @@ public class NacosNamingService implements NamingService {
     }
 
     @Override
+    //订阅处理
     public void subscribe(String serviceName, String groupName, List<String> clusters, EventListener listener)
             throws NacosException {
         if (null == listener) {
             return;
         }
         String clusterString = StringUtils.join(clusters, ",");
+        // 注册事件监听
         changeNotifier.registerListener(groupName, serviceName, clusterString, listener);
+        //订阅服务处理
         clientProxy.subscribe(serviceName, groupName, clusterString);
     }
 
