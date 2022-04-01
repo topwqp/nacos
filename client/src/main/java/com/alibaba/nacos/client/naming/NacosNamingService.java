@@ -224,15 +224,13 @@ public class NacosNamingService implements NamingService {
             boolean subscribe) throws NacosException {
         ServiceInfo serviceInfo;
         String clusterString = StringUtils.join(clusters, ",");
-        /**
-         * 为什么需要说明是否订阅？?? 因为订阅机制会自动同步服务器实例的变化到本地
-         * 如果是订阅模式，则直接从本地缓存获取服务信息（ServiceInfo）
-         * ，然后从中获取实例列表，订阅机制会自动同步服务器实例的变化到本地。
-         * 如果本地缓存中没有，那说明是首次调用，则进行订阅，在订阅完成后会获得到服务信息。
-         */
+        //为什么需要说明是否订阅？?? 因为订阅机制会自动同步服务器实例的变化到本地
+        //如果是订阅模式，则直接从本地缓存获取服务信息（ServiceInfo）
+        //，然后从中获取实例列表，订阅机制会自动同步服务器实例的变化到本地。
+        //如果本地缓存中没有，那说明是首次调用，则进行订阅，在订阅完成后会获得到服务信息。
         //是否订阅了实例信息
         if (subscribe) {
-             //先从客户端缓存中获取服务信息
+            //先从客户端缓存中获取服务信息
             serviceInfo = serviceInfoHolder.getServiceInfo(serviceName, groupName, clusterString);
             if (null == serviceInfo) {
                 //缓存中不存在，订阅信息

@@ -92,7 +92,7 @@ public class FailoverReactor implements Closeable {
         executorService.scheduleWithFixedDelay(new DiskFileWriter(), 30, DAY_PERIOD_MINUTES, TimeUnit.MINUTES);
 
         // backup file on startup if failover directory is empty.
-       // 立即执行，执行间隔10秒，执行核心操作为DiskFileWriter
+        // 立即执行，执行间隔10秒，执行核心操作为DiskFileWriter
         executorService.schedule(new Runnable() {
             @Override
             public void run() {
@@ -170,7 +170,9 @@ public class FailoverReactor implements Closeable {
                             if ("1".equals(line1)) {
                                 switchParams.put("failover-mode", "true");
                                 NAMING_LOGGER.info("failover-mode is on");
-                                //故障转移文件读取  故障转移文件读取。基本操作就是读取failover目录存储ServiceInfo的文件内容，然后转换成ServiceInfo，并用将所有的ServiceInfo存储在FailoverReactor的serviceMap属性中
+                                //故障转移文件读取  故障转移文件读取。基本操作就是读取failover目录存储ServiceInfo的文件内容，
+                                // 然后转换成ServiceInfo，并用将所有的ServiceInfo
+                                // 存储在FailoverReactor的serviceMap属性中
                                 new FailoverFileReader().run();
                             } else if ("0".equals(line1)) {
                                 //0关闭故障转移模式

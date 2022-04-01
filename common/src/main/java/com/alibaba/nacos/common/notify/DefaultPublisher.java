@@ -78,7 +78,7 @@ public class DefaultPublisher extends Thread implements EventPublisher {
     public ConcurrentHashSet<Subscriber> getSubscribers() {
         return subscribers;
     }
-   //线程执行
+
     @Override
     public synchronized void start() {
         if (!initialized) {

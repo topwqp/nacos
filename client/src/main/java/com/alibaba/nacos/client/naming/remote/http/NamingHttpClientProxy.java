@@ -114,8 +114,6 @@ public class NamingHttpClientProxy extends AbstractNamingClientProxy {
         }
         final Map<String, String> params = new HashMap<String, String>(16);
         //组装请求header对象参数
-
-
         params.put(CommonParams.NAMESPACE_ID, namespaceId);
         //groupName@@ServiceName
         params.put(CommonParams.SERVICE_NAME, groupedServiceName);

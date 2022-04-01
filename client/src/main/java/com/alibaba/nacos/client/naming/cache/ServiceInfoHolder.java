@@ -85,13 +85,9 @@ public class ServiceInfoHolder implements Closeable {
         }
     }
 
-    /**
-     * 启动时是否从缓存目录读取信息，默认false。
-     * 设置为true会读取缓存文件
-     * 缓存文件地址在init方法中已经初始化
-     * @param properties
-     * @return
-     */
+    //启动时是否从缓存目录读取信息，默认false。
+    //     * 设置为true会读取缓存文件
+    //     * 缓存文件地址在init方法中已经初始化
     private boolean isLoadCacheAtStart(Properties properties) {
         boolean loadCacheAtStart = false;
         if (properties != null && StringUtils
