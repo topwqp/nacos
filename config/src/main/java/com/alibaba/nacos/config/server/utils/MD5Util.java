@@ -45,7 +45,7 @@ import static com.alibaba.nacos.config.server.constant.Constants.WORD_SEPARATOR;
  */
 @SuppressWarnings("PMD.ClassNamingShouldBeCamelRule")
 public class MD5Util {
-    
+
     /**
      * Compare Md5.
      */
@@ -53,18 +53,21 @@ public class MD5Util {
             Map<String, String> clientMd5Map) {
         List<String> changedGroupKeys = new ArrayList<String>();
         String tag = request.getHeader("Vipserver-Tag");
+        //循环遍历每一个groupKey是否更新了配置
         for (Map.Entry<String, String> entry : clientMd5Map.entrySet()) {
             String groupKey = entry.getKey();
             String clientMd5 = entry.getValue();
             String ip = RequestUtil.getRemoteIp(request);
+            //判断是否是最新的数据
             boolean isUptodate = ConfigCacheService.isUptodate(groupKey, clientMd5, ip, tag);
+            //如果不是最新，把对应的groupKey添加到list中，返回到客户端，客户端会进行拉取操作
             if (!isUptodate) {
                 changedGroupKeys.add(groupKey);
             }
         }
         return changedGroupKeys;
     }
-    
+
     /**
      * Compare old Md5.
      */
@@ -79,7 +82,7 @@ public class MD5Util {
         }
         return sb.toString();
     }
-    
+
     /**
      * Join and encode changedGroupKeys string.
      */
@@ -87,9 +90,9 @@ public class MD5Util {
         if (null == changedGroupKeys) {
             return "";
         }
-        
+
         StringBuilder sb = new StringBuilder();
-        
+
         for (String groupKey : changedGroupKeys) {
             String[] dataIdGroupId = GroupKey2.parseKey(groupKey);
             sb.append(dataIdGroupId[0]);
@@ -104,11 +107,11 @@ public class MD5Util {
             }
             sb.append(LINE_SEPARATOR);
         }
-        
+
         // To encode WORD_SEPARATOR and LINE_SEPARATOR invisible characters, encoded value is %02 and %01
         return URLEncoder.encode(sb.toString(), "UTF-8");
     }
-    
+
     /**
      * Parse the transport protocol, which has two formats (W for field delimiter, L for each data delimiter) old: D w G
      * w MD5 l new: D w G w MD5 w T l.
@@ -117,9 +120,9 @@ public class MD5Util {
      * @return protocol message
      */
     public static Map<String, String> getClientMd5Map(String configKeysString) {
-        
+
         Map<String, String> md5Map = new HashMap<String, String>(5);
-        
+
         if (null == configKeysString || "".equals(configKeysString)) {
             return md5Map;
         }
@@ -140,7 +143,7 @@ public class MD5Util {
                     endValue = configKeysString.substring(start, i);
                 }
                 start = i + 1;
-                
+
                 // If it is the old message, the last digit is MD5. The post-multi-tenant message is tenant
                 if (tmpList.size() == 2) {
                     String groupKey = GroupKey2.getKey(tmpList.get(0), tmpList.get(1));
@@ -152,7 +155,7 @@ public class MD5Util {
                     md5Map.put(groupKey, tmpList.get(2));
                 }
                 tmpList.clear();
-                
+
                 // Protect malformed messages
                 if (md5Map.size() > 10000) {
                     throw new IllegalArgumentException("invalid protocol, too much listener");
@@ -161,12 +164,12 @@ public class MD5Util {
         }
         return md5Map;
     }
-    
+
     public static String toString(InputStream input, String encoding) throws IOException {
         return (null == encoding) ? toString(new InputStreamReader(input, Constants.ENCODE))
                 : toString(new InputStreamReader(input, encoding));
     }
-    
+
     /**
      * Reader to String.
      */
@@ -175,7 +178,7 @@ public class MD5Util {
         copy(reader, sw);
         return sw.toString();
     }
-    
+
     /**
      * Copy data to buffer.
      */
@@ -188,10 +191,10 @@ public class MD5Util {
         }
         return count;
     }
-    
+
     static final char WORD_SEPARATOR_CHAR = (char) 2;
-    
+
     static final char LINE_SEPARATOR_CHAR = (char) 1;
-    
+
 }
 

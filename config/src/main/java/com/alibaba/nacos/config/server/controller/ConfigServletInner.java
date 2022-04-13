@@ -60,42 +60,46 @@ import static com.alibaba.nacos.config.server.utils.LogUtil.PULL_LOG;
  */
 @Service
 public class ConfigServletInner {
-    
+
     @Autowired
     private LongPollingService longPollingService;
-    
+
     @Autowired
     private PersistService persistService;
-    
+
     private static final int TRY_GET_LOCK_TIMES = 9;
-    
+
     private static final int START_LONG_POLLING_VERSION_NUM = 204;
-    
+
     /**
      * 轮询接口.
      */
     public String doPollingConfig(HttpServletRequest request, HttpServletResponse response,
             Map<String, String> clientMd5Map, int probeRequestSize) throws IOException {
-        
+
         // Long polling.
+        //判断是否支持长轮询，如果支持，加入到长轮询处理
         if (LongPollingService.isSupportLongPolling(request)) {
             longPollingService.addLongPollingClient(request, response, clientMd5Map, probeRequestSize);
+            //注意，这里的return的字符串200，并没有通过response返回，证明连接还在，并没有关闭，如果通过response返回，连接关闭
+            //这里只是方法的返回，上层方法调用doPollingConfig时，并没有获取对应的值 //这里需要再验证下 todo
             return HttpServletResponse.SC_OK + "";
         }
-        
+
         // Compatible with short polling logic.
+        //兼容短轮询的处理逻辑
         List<String> changedGroups = MD5Util.compareMd5(request, response, clientMd5Map);
-        
+
         // Compatible with short polling result.
         String oldResult = MD5Util.compareMd5OldResult(changedGroups);
         String newResult = MD5Util.compareMd5ResultString(changedGroups);
-        
+
         String version = request.getHeader(Constants.CLIENT_VERSION_HEADER);
         if (version == null) {
             version = "2.0.0";
         }
         int versionNum = Protocol.getVersionNumber(version);
-        
+
         // Before 2.0.4 version, return value is put into header.
         if (versionNum < START_LONG_POLLING_VERSION_NUM) {
             response.addHeader(Constants.PROBE_MODIFY_RESPONSE, oldResult);
@@ -103,7 +107,7 @@ public class ConfigServletInner {
         } else {
             request.setAttribute("content", newResult);
         }
-        
+
         // Disable cache.
         response.setHeader("Pragma", "no-cache");
         response.setDateHeader("Expires", 0);
@@ -111,24 +115,24 @@ public class ConfigServletInner {
         response.setStatus(HttpServletResponse.SC_OK);
         return HttpServletResponse.SC_OK + "";
     }
-    
+
     /**
      * Execute to get config API.
      */
     public String doGetConfig(HttpServletRequest request, HttpServletResponse response, String dataId, String group,
             String tenant, String tag, String isNotify, String clientIp) throws IOException, ServletException {
-        
+
         boolean notify = false;
         if (StringUtils.isNotBlank(isNotify)) {
             notify = Boolean.valueOf(isNotify);
         }
-        
+
         final String groupKey = GroupKey2.getKey(dataId, group, tenant);
         String autoTag = request.getHeader("Vipserver-Tag");
-        
+
         String requestIpApp = RequestUtil.getAppName(request);
         int lockResult = tryConfigReadLock(groupKey);
-        
+
         final String requestIp = RequestUtil.getRemoteIp(request);
         boolean isBeta = false;
         boolean isSli = false;
@@ -142,14 +146,14 @@ public class ConfigServletInner {
                 if (cacheItem.isBeta() && cacheItem.getIps4Beta().contains(clientIp)) {
                     isBeta = true;
                 }
-                
+
                 final String configType =
                         (null != cacheItem.getType()) ? cacheItem.getType() : FileTypeEnum.TEXT.getFileType();
                 response.setHeader("Config-Type", configType);
                 FileTypeEnum fileTypeEnum = FileTypeEnum.getFileTypeEnumByFileExtensionOrFileType(configType);
                 String contentTypeHeader = fileTypeEnum.getContentType();
                 response.setHeader(HttpHeaderConsts.CONTENT_TYPE, contentTypeHeader);
-                
+
                 File file = null;
                 ConfigInfoBase configInfoBase = null;
                 PrintWriter out = null;
@@ -176,7 +180,7 @@ public class ConfigServletInner {
                             } else {
                                 file = DiskUtil.targetTagFile(dataId, group, tenant, autoTag);
                             }
-                            
+
                             response.setHeader(com.alibaba.nacos.api.common.Constants.VIPSERVER_TAG,
                                     URLEncoder.encode(autoTag, StandardCharsets.UTF_8.displayName()));
                         } else {
@@ -192,11 +196,11 @@ public class ConfigServletInner {
                                 // No longer exists. It is impossible to simply calculate the push delayed. Here, simply record it as - 1.
                                 ConfigTraceService.logPullEvent(dataId, group, tenant, requestIpApp, -1,
                                         ConfigTraceService.PULL_EVENT_NOTFOUND, -1, requestIp, notify);
-                                
+
                                 // pullLog.info("[client-get] clientIp={}, {},
                                 // no data",
                                 // new Object[]{clientIp, groupKey});
-                                
+
                                 return get404Result(response);
                             }
                             isSli = true;
@@ -221,20 +225,20 @@ public class ConfigServletInner {
                             // No longer exists. It is impossible to simply calculate the push delayed. Here, simply record it as - 1.
                             ConfigTraceService.logPullEvent(dataId, group, tenant, requestIpApp, -1,
                                     ConfigTraceService.PULL_EVENT_NOTFOUND, -1, requestIp, notify && isSli);
-                            
+
                             // pullLog.info("[client-get] clientIp={}, {},
                             // no data",
                             // new Object[]{clientIp, groupKey});
-                            
+
                             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                             response.getWriter().println("config data not exist");
                             return HttpServletResponse.SC_NOT_FOUND + "";
                         }
                     }
                 }
-                
+
                 response.setHeader(Constants.CONTENT_MD5, md5);
-                
+
                 // Disable cache.
                 response.setHeader("Pragma", "no-cache");
                 response.setDateHeader("Expires", 0);
@@ -245,7 +249,7 @@ public class ConfigServletInner {
                     fis = new FileInputStream(file);
                     response.setDateHeader("Last-Modified", file.lastModified());
                 }
-                
+
                 if (PropertyUtil.isDirectRead()) {
                     out = response.getWriter();
                     out.print(configInfoBase.getContent());
@@ -255,11 +259,11 @@ public class ConfigServletInner {
                     fis.getChannel()
                             .transferTo(0L, fis.getChannel().size(), Channels.newChannel(response.getOutputStream()));
                 }
-                
+
                 LogUtil.PULL_CHECK_LOG.warn("{}|{}|{}|{}", groupKey, requestIp, md5, TimeUtils.getCurrentTimeStr());
-                
+
                 final long delayed = System.currentTimeMillis() - lastModified;
-                
+
                 // TODO distinguish pull-get && push-get
                 /*
                  Otherwise, delayed cannot be used as the basis of push delay directly,
@@ -267,43 +271,43 @@ public class ConfigServletInner {
                  */
                 ConfigTraceService.logPullEvent(dataId, group, tenant, requestIpApp, lastModified,
                         ConfigTraceService.PULL_EVENT_OK, delayed, requestIp, notify && isSli);
-                
+
             } finally {
                 releaseConfigReadLock(groupKey);
                 IoUtils.closeQuietly(fis);
             }
         } else if (lockResult == 0) {
-            
+
             // FIXME CacheItem No longer exists. It is impossible to simply calculate the push delayed. Here, simply record it as - 1.
             ConfigTraceService
                     .logPullEvent(dataId, group, tenant, requestIpApp, -1, ConfigTraceService.PULL_EVENT_NOTFOUND, -1,
                             requestIp, notify && isSli);
-            
+
             return get404Result(response);
-            
+
         } else {
-            
+
             PULL_LOG.info("[client-get] clientIp={}, {}, get data during dump", clientIp, groupKey);
-            
+
             response.setStatus(HttpServletResponse.SC_CONFLICT);
             response.getWriter().println("requested file is being modified, please try later.");
             return HttpServletResponse.SC_CONFLICT + "";
-            
+
         }
-        
+
         return HttpServletResponse.SC_OK + "";
     }
-    
+
     private static void releaseConfigReadLock(String groupKey) {
         ConfigCacheService.releaseReadLock(groupKey);
     }
-    
+
     private String get404Result(HttpServletResponse response) throws IOException {
         response.setStatus(HttpServletResponse.SC_NOT_FOUND);
         response.getWriter().println("config data not exist");
         return HttpServletResponse.SC_NOT_FOUND + "";
     }
-    
+
     /**
      * Try to add read lock.
      *
@@ -311,24 +315,24 @@ public class ConfigServletInner {
      * @return 0 - No data and failed. Positive number - lock succeeded. Negative number - lock failed。
      */
     private static int tryConfigReadLock(String groupKey) {
-        
+
         // Lock failed by default.
         int lockResult = -1;
-        
+
         // Try to get lock times, max value: 10;
         for (int i = TRY_GET_LOCK_TIMES; i >= 0; --i) {
             lockResult = ConfigCacheService.tryReadLock(groupKey);
-            
+
             // The data is non-existent.
             if (0 == lockResult) {
                 break;
             }
-            
+
             // Success
             if (lockResult > 0) {
                 break;
             }
-            
+
             // Retry.
             if (i > 0) {
                 try {
@@ -338,19 +342,19 @@ public class ConfigServletInner {
                 }
             }
         }
-        
+
         return lockResult;
     }
-    
+
     private static boolean isUseTag(CacheItem cacheItem, String tag) {
         if (cacheItem != null && cacheItem.tagMd5 != null && cacheItem.tagMd5.size() > 0) {
             return StringUtils.isNotBlank(tag) && cacheItem.tagMd5.containsKey(tag);
         }
         return false;
     }
-    
+
     private static boolean fileNotExist(File file) {
         return file == null || !file.exists();
     }
-    
+
 }
